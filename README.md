@@ -3,7 +3,7 @@
 This is a simple Terraform configuration for building infrastructure on AWS. This config builds the following:
  - a VPC
  - an Internet Gateway
- - Security groups
- - Subnets
+ - Security group
+ - 2 Subnets
  - Routing tables
- - EC2 instances
+ - 2 EC2 instances
