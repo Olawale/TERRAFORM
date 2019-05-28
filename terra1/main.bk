@@ -1,0 +1,128 @@
+provider "aws" {
+  region = "${var.region}"
+}
+
+resource "aws_vpc" "net_vpc" {
+  cidr_block = "10.0.0.0/16"
+
+  tags = {
+    Name = "NET VPC"
+  }
+}
+
+resource "aws_internet_gateway" "net_gw" {
+  vpc_id = "${aws_vpc.net_vpc.id}"
+
+  tags = {
+    Name = "NET GATEWAY"
+  }
+}
+
+resource "aws_route_table" "net_rt" {
+ 
+  vpc_id = "${aws_vpc.net_vpc.id}"
+  
+  route = {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = "${aws_internet_gateway.net_gw.id}"
+  }
+
+  tags = {
+    Name = "NET Route Table"
+  }
+}
+
+data "aws_availability_zones" "available" {}
+
+resource "aws_subnet" "public_subnet1" {
+
+  vpc_id = "${aws_vpc.net_vpc.id}"
+  cidr_block = "10.0.1.0/24"
+  map_public_ip_on_launch = true
+  availability_zone = "${data.aws_availability_zones.available.names[0]}"
+
+  tags = {
+    Name = "Public Subnet 1"
+  }
+}
+
+resource "aws_subnet" "public_subnet2" {
+ 
+  vpc_id = "${aws_vpc.net_vpc.id}"
+  cidr_block = "10.0.2.0/24"
+  map_public_ip_on_launch = true
+  availability_zone = "${data.aws_availability_zones.available.names[1]}"
+
+  tags = {
+    Name = "Public Subnet 2"
+  }
+}
+
+resource "aws_route_table_association" "net_rt_association_sub1" {
+  subnet_id = "${aws_subnet.public_subnet1.id}"
+  route_table_id = "${aws_route_table.net_rt.id}"
+}
+
+resource "aws_route_table_association" "net_rt_association_sub2" {
+  subnet_id = "${aws_subnet.public_subnet2.id}"
+  route_table_id = "${aws_route_table.net_rt.id}"
+}
+
+resource "aws_security_group" "public_sg" {
+
+  vpc_id = "${aws_vpc.net_vpc.id}"
+  name = "Public SG"
+
+  ingress {
+    from_port = 443
+    to_port = 443
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port = 80
+    to_port = 80
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+data "template_file" "user_data" {
+template = "${file("userdata.tpl")}"
+}
+
+resource "aws_instance" "public_instance1" {
+  ami           = "${lookup(var.amis, var.region)}"
+  instance_type = "${var.instance}"
+  vpc_security_group_ids = ["${aws_security_group.public_sg.id}"]
+  subnet_id = "${aws_subnet.public_subnet1.id}"
+  user_data = "${data.template_file.user_data.rendered}"
+
+  tags = {
+    Name = "Public Instance 1"
+  }
+}
+
+resource "aws_instance" "public_instance2" {
+  ami           = "${lookup(var.amis, var.region)}"
+  instance_type = "${var.instance}"
+  vpc_security_group_ids = ["${aws_security_group.public_sg.id}"]
+  subnet_id = "${aws_subnet.public_subnet2.id}"
+  user_data = "${data.template_file.user_data.rendered}"
+  
+  tags = { 
+    Name = "Public Instance 2"
+  }
+}
+
+
+
+
